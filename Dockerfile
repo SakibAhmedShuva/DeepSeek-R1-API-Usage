@@ -16,12 +16,6 @@ COPY . /app
 # Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Create a non-root user
-# RUN useradd -m -u 1000 user
-
-# Give full permissions to the app directory
-RUN chmod -R 777 /app
-
 # Run app.py when the container launches
 EXPOSE 7860
 
