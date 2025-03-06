@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "7860:7860"
+    volumes:
+      - .:/app
+    environment:
+      - DEEPSEEK_API_KEY=your_deepseek_api_key_here
+    user: "1000"
