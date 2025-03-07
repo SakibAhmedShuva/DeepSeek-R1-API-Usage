@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat with DeepSeek Reasoner</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            padding-bottom: 50px;
+        }
+        .container {
+            max-width: 1200px;
+        }
+        .header {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+            border-radius: 0 0 10px 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .card-header {
+            background-color: #f1f3f5;
+            border-bottom: 1px solid #e9ecef;
+            font-weight: 600;
+        }
+        .form-control, .form-select {
+            border-radius: 8px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            border: none;
+            border-radius: 8px;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #5a0cb0 0%, #1565e0 100%);
+        }
+        .btn-outline-secondary {
+            border-radius: 8px;
+        }
+        .output-container {
+            min-height: 300px;
+            max-height: 600px;
+            overflow-y: auto;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.05);
+        }
+        .reasoning-container {
+            background-color: #f8f9fa;
+            border-left: 3px solid #6a11cb;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+        .content-container {
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+        .parameter-card {
+            transition: all 0.3s ease;
+        }
+        .parameter-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        .conversation-item {
+            cursor: pointer;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 5px;
+            transition: all 0.2s ease;
+        }
+        .conversation-item:hover {
+            background-color: #e9ecef;
+        }
+        .conversation-item.active {
+            background-color: #e2e6ea;
+            font-weight: bold;
+        }
+        .chapter-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin: 20px 0 10px 0;
+            color: #343a40;
+        }
+        .scene-break {
+            text-align: center;
+            margin: 20px 0;
+            color: #6c757d;
+        }
+        .spinner-border {
+            width: 1rem;
+            height: 1rem;
+        }
+        .text-gradient {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        #reasoningOutput {
+            display: none;
+        }
+        .tab-content {
+            padding: 20px 0;
+        }
+        /* For smooth animation of text appearing */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .new-content {
+            animation: fadeIn 0.3s ease-in;
+        }
+        .chat-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .chat-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-bottom: 4px;
+            cursor: pointer;
+        }
+        .chat-list-item:hover {
+            background-color: #f0f0f0;
+        }
+        .chat-list-item.active {
+            background-color: #e2e6ea;
+            font-weight: bold;
+        }
+        .chat-actions {
+            display: none;
+        }
+        .chat-list-item:hover .chat-actions {
+            display: block;
+        }
+        .cursor-blink {
+            display: inline-block;
+            width: 2px;
+            height: 1.2em;
+            background-color: #333;
+            margin-left: 1px;
+            vertical-align: middle;
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink {
+            from, to { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        .language-flag {
+            width: 20px;
+            height: 15px;
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1 class="display-4">AI Chat Assistant</h1>
+            <p class="lead">Powered by DeepSeek Reasoner</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="row">
+            <!-- Left Column: Input, Parameters, and Chat History -->
+            <div class="col-lg-4">
+                <!-- Chat History Card -->
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>Chat History</span>
+                        <button class="btn btn-sm btn-primary" id="newChatBtn">
+                            <i class="bi bi-plus-lg"></i> New Chat
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="chatList" class="chat-list">
+                            <!-- Chat history items will be added here -->
+                            <div class="text-center text-muted py-3">
+                                <p>No chats yet.</p>
+                                <p>Click "New Chat" to begin.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Input Card -->
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>Your Message</span>
+                        <button class="btn btn-sm btn-outline-secondary" id="clearConversationBtn" title="Clear Conversation">
+                            <i class="bi bi-trash"></i> Clear
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <textarea class="form-control" id="promptInput" rows="5" placeholder="Type your message here..."></textarea>
+                        </div>
+                        <div class="d-grid">
+                            <button class="btn btn-primary" id="generateBtn">Send Message</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Parameters Card -->
+                <div class="card parameter-card">
+                    <div class="card-header">Chat Parameters</div>
+                    <div class="card-body">
+                        <!-- New Language Selection Dropdown -->
+                        <div class="mb-3">
+                            <label for="languageSelect" class="form-label">Language:</label>
+                            <select class="form-select" id="languageSelect">
+                                <option value="english" selected>English</option>
+                                <option value="spanish">Spanish (Español)</option>
+                                <option value="french">French (Français)</option>
+                                <option value="german">German (Deutsch)</option>
+                                <option value="italian">Italian (Italiano)</option>
+                                <option value="portuguese">Portuguese (Português)</option>
+                                <option value="russian">Russian (Русский)</option>
+                                <option value="japanese">Japanese (日本語)</option>
+                                <option value="chinese">Chinese (中文)</option>
+                                <option value="korean">Korean (한국어)</option>
+                                <option value="arabic">Arabic (العربية)</option>
+                                <option value="hindi">Hindi (हिन्दी)</option>
+                            </select>
+                            <small class="text-muted">Select your preferred language</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="temperatureRange" class="form-label">Temperature: <span id="temperatureValue">1.3</span></label>
+                            <input type="range" class="form-range" min="0" max="2" step="0.1" value="1.3" id="temperatureRange">
+                            <small class="text-muted">Controls randomness (higher = more creative)</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="frequencyPenaltyRange" class="form-label">Frequency Penalty: <span id="frequencyPenaltyValue">1.5</span></label>
+                            <input type="range" class="form-range" min="0" max="2" step="0.1" value="1.5" id="frequencyPenaltyRange">
+                            <small class="text-muted">Reduces repetition in responses</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="presencePenaltyRange" class="form-label">Presence Penalty: <span id="presencePenaltyValue">0.3</span></label>
+                            <input type="range" class="form-range" min="0" max="2" step="0.1" value="0.3" id="presencePenaltyRange">
+                            <small class="text-muted">Encourages discussing new topics</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="maxTokensInput" class="form-label">Max Tokens:</label>
+                            <input type="number" class="form-control" id="maxTokensInput" value="8192" min="1" max="8192">
+                            <small class="text-muted">Maximum length of response</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="textSpeedRange" class="form-label">Text Speed: <span id="textSpeedValue">5</span></label>
+                            <input type="range" class="form-range" min="1" max="10" step="1" value="5" id="textSpeedRange">
+                            <small class="text-muted">Controls how fast text appears (higher = faster)</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Output -->
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header">
+                        <ul class="nav nav-tabs card-header-tabs" id="outputTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="content-tab" data-bs-toggle="tab" data-bs-target="#content" type="button" role="tab" aria-controls="content" aria-selected="true">Response</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="reasoning-tab" data-bs-toggle="tab" data-bs-target="#reasoning" type="button" role="tab" aria-controls="reasoning" aria-selected="false">Reasoning</button>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body">
+                        <div class="tab-content" id="outputTabsContent">
+                            <div class="tab-pane fade show active" id="content" role="tabpanel" aria-labelledby="content-tab">
+                                <div id="contentOutput" class="output-container content-container">
+                                    <div class="text-center text-muted p-5">
+                                        <p>AI responses will appear here.</p>
+                                        <p>Start by creating a new chat and sending a message.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="reasoning" role="tabpanel" aria-labelledby="reasoning-tab">
+                                <div id="reasoningOutput" class="output-container reasoning-container">
+                                    <div class="text-center text-muted p-5">
+                                        <p>The AI's reasoning process will appear here.</p>
+                                        <p>This shows how the AI thinks about generating its responses.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM Elements
+            const promptInput = document.getElementById('promptInput');
+            const generateBtn = document.getElementById('generateBtn');
+            const clearConversationBtn = document.getElementById('clearConversationBtn');
+            const contentOutput = document.getElementById('contentOutput');
+            const reasoningOutput = document.getElementById('reasoningOutput');
+            const chatList = document.getElementById('chatList');
+            const newChatBtn = document.getElementById('newChatBtn');
+            
+            // Parameter Elements
+            const languageSelect = document.getElementById('languageSelect');
+            const temperatureRange = document.getElementById('temperatureRange');
+            const temperatureValue = document.getElementById('temperatureValue');
+            const frequencyPenaltyRange = document.getElementById('frequencyPenaltyRange');
+            const frequencyPenaltyValue = document.getElementById('frequencyPenaltyValue');
+            const presencePenaltyRange = document.getElementById('presencePenaltyRange');
+            const presencePenaltyValue = document.getElementById('presencePenaltyValue');
+            const maxTokensInput = document.getElementById('maxTokensInput');
+            const textSpeedRange = document.getElementById('textSpeedRange');
+            const textSpeedValue = document.getElementById('textSpeedValue');
+
+            // Update parameter values when sliders change
+            temperatureRange.addEventListener('input', () => {
+                temperatureValue.textContent = temperatureRange.value;
+            });
+            
+            frequencyPenaltyRange.addEventListener('input', () => {
+                frequencyPenaltyValue.textContent = frequencyPenaltyRange.value;
+            });
+            
+            presencePenaltyRange.addEventListener('input', () => {
+                presencePenaltyValue.textContent = presencePenaltyRange.value;
+            });
+
+            textSpeedRange.addEventListener('input', () => {
+                textSpeedValue.textContent = textSpeedRange.value;
+            });
+
+            // Global variables
+            let currentConversationId = null;
+            let contentBuffer = [];
+            let isProcessingBuffer = false;
+            let contentUpdateTimer = null;
+            let chatHistory = {};
+            let isGenerating = false;
+            let cursorElement = null;
+            
+            // Load chat history from localStorage
+            function loadChatHistory() {
+                const savedHistory = localStorage.getItem('chatAssistantHistory');
+                if (savedHistory) {
+                    try {
+                        chatHistory = JSON.parse(savedHistory);
+                        updateChatListUI();
+                    } catch (e) {
+                        console.error('Error loading chat history:', e);
+                        chatHistory = {};
+                    }
+                }
+            }
+            
+            // Save chat history to localStorage
+            function saveChatHistory() {
+                localStorage.setItem('chatAssistantHistory', JSON.stringify(chatHistory));
+            }
+            
+            // Update the chat list UI
+            function updateChatListUI() {
+                chatList.innerHTML = '';
+                
+                if (Object.keys(chatHistory).length === 0) {
+                    chatList.innerHTML = `
+                        <div class="text-center text-muted py-3">
+                            <p>No chats yet.</p>
+                            <p>Click "New Chat" to begin.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Sort chats by last updated time (newest first)
+                const sortedChats = Object.entries(chatHistory)
+                    .sort((a, b) => b[1].lastUpdated - a[1].lastUpdated);
+                
+                for (const [id, chat] of sortedChats) {
+                    const chatItem = document.createElement('div');
+                    chatItem.className = `chat-list-item ${id === currentConversationId ? 'active' : ''}`;
+                    chatItem.dataset.id = id;
+                    
+                    // Format date
+                    const date = new Date(chat.lastUpdated);
+                    const formattedDate = `${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+                    
+                    // Add language indicator if available
+                    const languageIndicator = chat.language ? 
+                        `<small class="ms-1 badge bg-light text-dark">${chat.language}</small>` : '';
+                    
+                    chatItem.innerHTML = `
+                        <div class="chat-title" title="${chat.title}">
+                            ${chat.title.length > 25 ? chat.title.substring(0, 25) + '...' : chat.title}
+                            ${languageIndicator}
+                            <div class="text-muted small">${formattedDate}</div>
+                        </div>
+                        <div class="chat-actions">
+                            <button class="btn btn-sm btn-outline-danger delete-chat" data-id="${id}">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    `;
+                    
+                    chatItem.addEventListener('click', (e) => {
+                        // Ignore if clicking the delete button
+                        if (e.target.closest('.delete-chat')) {
+                            return;
+                        }
+                        
+                        selectChat(id);
+                    });
+                    
+                    chatList.appendChild(chatItem);
+                }
+                
+                // Add event listeners for delete buttons
+                document.querySelectorAll('.delete-chat').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const chatId = btn.dataset.id;
+                        deleteChat(chatId);
+                    });
+                });
+            }
+            
+            // Create a new chat
+            function createNewChat() {
+                const id = 'chat_' + Date.now();
+                const title = `New Chat ${Object.keys(chatHistory).length + 1}`;
+                
+                chatHistory[id] = {
+                    title: title,
+                    lastUpdated: Date.now(),
+                    content: '',
+                    reasoning: '',
+                    language: languageSelect.value
+                };
+                
+                saveChatHistory();
+                selectChat(id);
+                return id;
+            }
+            
+            // Select a chat
+            function selectChat(id) {
+                if (!chatHistory[id]) {
+                    console.error(`Chat ${id} not found`);
+                    return;
+                }
+                
+                // Update UI
+                document.querySelectorAll('.chat-list-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                
+                const chatItem = document.querySelector(`.chat-list-item[data-id="${id}"]`);
+                if (chatItem) {
+                    chatItem.classList.add('active');
+                }
+                
+                // Update current conversation
+                currentConversationId = id;
+                
+                // Update language selector if the chat has a language set
+                if (chatHistory[id].language) {
+                    languageSelect.value = chatHistory[id].language;
+                } else {
+                    languageSelect.value = 'english'; // Default
+                }
+                
+                // Load content
+                contentOutput.innerHTML = chatHistory[id].content || `
+                    <div class="text-center text-muted p-5">
+                        <p>This is a new chat.</p>
+                        <p>Type a message to begin.</p>
+                    </div>
+                `;
+                
+                reasoningOutput.innerHTML = chatHistory[id].reasoning || `
+                    <div class="text-center text-muted p-5">
+                        <p>Reasoning will appear here during response generation.</p>
+                    </div>
+                `;
+                
+                // Update content dataset
+                if (chatHistory[id].content) {
+                    contentOutput.dataset.rawContent = chatHistory[id].content;
+                } else {
+                    delete contentOutput.dataset.rawContent;
+                }
+                
+                // Scroll to bottom
+                contentOutput.scrollTop = contentOutput.scrollHeight;
+                reasoningOutput.scrollTop = reasoningOutput.scrollHeight;
+            }
+            
+            // Delete a chat
+            function deleteChat(id) {
+                if (confirm(`Are you sure you want to delete this chat?`)) {
+                    // If deleting current chat, clear the UI
+                    if (id === currentConversationId) {
+                        currentConversationId = null;
+                        contentOutput.innerHTML = `
+                            <div class="text-center text-muted p-5">
+                                <p>Select a chat or create a new one.</p>
+                            </div>
+                        `;
+                        reasoningOutput.innerHTML = `
+                            <div class="text-center text-muted p-5">
+                                <p>Select a chat or create a new one.</p>
+                            </div>
+                        `;
+                        delete contentOutput.dataset.rawContent;
+                    }
+                    
+                    // Delete from history
+                    delete chatHistory[id];
+                    saveChatHistory();
+                    updateChatListUI();
+                    
+                    // Also delete from server
+                    fetch(`/conversations/${id}`, {
+                        method: 'DELETE'
+                    }).catch(err => console.error('Error deleting conversation from server:', err));
+                }
+            }
+            
+            // Format the output with markdown-like syntax
+            function formatOutput(text) {
+                // Format chapter titles
+                text = text.replace(/## (.*?)$/gm, '<h2 class="chapter-title">$1</h2>');
+                
+                // Format bold text - single asterisks for bold (corrected)
+                text = text.replace(/\*(.*?)\*/g, '<strong>$1</strong>');
+                
+                // Format italic text - use underscores for italics instead
+                text = text.replace(/_(.*?)_/g, '<em>$1</em>');
+
+                // Format scene breaks
+                text = text.replace(/^---$/gm, '<div class="scene-break">* * *</div>');
+
+                text = text.replace(/^---$/gm, '<div class="scene-break fleuron">✧ ✦ ✧ </div>');
+                
+                // Alternative options (commented out - choose one)
+                // Option 2: Classic asterism (three asterisks)
+                // text = text.replace(/^---$/gm, '<div class="scene-break asterism">* * *</div>');
+                
+                // Option 3: Ornamental divider
+                // text = text.replace(/^---$/gm, '<div class="scene-break ornamental">§ § §</div>');
+                
+                // Option 4: Decorative line
+                // text = text.replace(/^---$/gm, '<div class="scene-break decorative-line">✧ ✦ ✧</div>');
+                
+                // // Format bold text - single asterisks for bold (corrected)
+                // text = text.replace(/\*(.*?)\*/g, '<strong>$1</strong>');
+                
+                // // Format italic text - use underscores for italics instead
+                // text = text.replace(/_(.*?)_/g, '<em>$1</em>');
+            
+                // Format paragraphs
+                const paragraphs = text.split(/\n\n+/);
+                return paragraphs.map(p => {
+                    // Skip already formatted elements (chapter titles, scene breaks)
+                    if (p.includes('<h2') || p.includes('<div class="scene-break"')) {
+                        return p;
+                    }
+                    // Format regular paragraphs
+                    return `<p>${p.replace(/\n/g, ' ')}</p>`;
+                }).join('');
+            }
+
+            // Add blinking cursor to the end of content
+            function addCursor() {
+                if (cursorElement) {
+                    cursorElement.remove();
+                }
+                cursorElement = document.createElement('span');
+                cursorElement.className = 'cursor-blink';
+                contentOutput.appendChild(cursorElement);
+            }
+            
+            // Remove cursor
+            function removeCursor() {
+                if (cursorElement) {
+                    cursorElement.remove();
+                    cursorElement = null;
+                }
+            }
+
+            // Process content buffer character by character for real-time display
+            function processContentBuffer() {
+                if (contentBuffer.length === 0 || isProcessingBuffer) {
+                    return;
+                }
+
+                isProcessingBuffer = true;
+                
+                // Get text speed from slider (1-10)
+                const speed = parseInt(textSpeedRange.value);
+                
+                // Process characters based on speed setting
+                const charsToProcess = Math.max(1, Math.min(10, speed));
+                let processedText = '';
+                
+                for (let i = 0; i < charsToProcess && contentBuffer.length > 0; i++) {
+                    processedText += contentBuffer.shift();
+                }
+                
+                // Initialize raw content if needed
+                if (!contentOutput.dataset.rawContent) {
+                    contentOutput.dataset.rawContent = '';
+                }
+                
+                // Append to raw content
+                contentOutput.dataset.rawContent += processedText;
+                
+                // Format and display
+                contentOutput.innerHTML = formatOutput(contentOutput.dataset.rawContent);
+                
+                // Add cursor at the end
+                if (isGenerating) {
+                    addCursor();
+                }
+                
+                // Scroll to bottom
+                contentOutput.scrollTop = contentOutput.scrollHeight;
+                
+                isProcessingBuffer = false;
+                
+                // If there's more in the buffer, schedule the next update
+                if (contentBuffer.length > 0) {
+                    // Use requestAnimationFrame for smoother updates
+                    window.requestAnimationFrame(processContentBuffer);
+                } else if (isGenerating) {
+                    // If buffer is empty but we're still generating, keep cursor
+                    addCursor();
+                }
+            }
+
+            // Generate content function
+            async function generateContent() {
+                if (!promptInput.value.trim()) {
+                    alert('Please enter a message first.');
+                    return;
+                }
+                
+                // Create a new chat if none is selected
+                if (!currentConversationId) {
+                    currentConversationId = createNewChat();
+                }
+
+                try {
+                    // Update UI to show loading state
+                    generateBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Sending...';
+                    generateBtn.disabled = true;
+                    isGenerating = true;
+                    
+                    // Clear previous outputs if this is a new chat
+                    if (!chatHistory[currentConversationId].content) {
+                        reasoningOutput.style.display = 'block';
+                        reasoningOutput.innerHTML = '';
+                        contentOutput.innerHTML = '';
+                        delete contentOutput.dataset.rawContent;
+                    }
+                    
+                    // Add cursor to show activity
+                    addCursor();
+                    
+                    // Clear any existing buffer and timer
+                    contentBuffer = [];
+                    if (contentUpdateTimer) {
+                        clearInterval(contentUpdateTimer);
+                    }
+                    
+                    // Start a timer to process the buffer regularly
+                    contentUpdateTimer = setInterval(() => {
+                        if (contentBuffer.length > 0) {
+                            processContentBuffer();
+                        }
+                    }, 10); // Process buffer every 10ms for smoother appearance
+
+                    // Get selected language
+                    const selectedLanguage = languageSelect.value;
+                    
+                    // Store language in chat history
+                    chatHistory[currentConversationId].language = selectedLanguage;
+                    saveChatHistory();
+
+                    // Prepare the payload
+                    const payload = {
+                        messages: [
+                            {
+                                role: "user",
+                                content: promptInput.value.trim()
+                            }
+                        ],
+                        max_tokens: parseInt(maxTokensInput.value),
+                        temperature: parseFloat(temperatureRange.value),
+                        frequency_penalty: parseFloat(frequencyPenaltyRange.value),
+                        presence_penalty: parseFloat(presencePenaltyRange.value),
+                        conversation_id: currentConversationId,
+                        stream: true,
+                        language: selectedLanguage
+                        };
+
+                        // Make API request
+                        const response = await fetch('/generate', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                        });
+
+                        if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+
+                        // Process the streaming response
+                        const reader = response.body.getReader();
+                        const decoder = new TextDecoder();
+
+                        // Update chat title based on prompt
+                        let title = promptInput.value.trim().substring(0, 50);
+                        if (title.length >= 50) {
+                        title += '...';
+                        }
+                        chatHistory[currentConversationId].title = title;
+                        chatHistory[currentConversationId].lastUpdated = Date.now();
+
+                        // Collect full content for saving
+                        let fullReasoningContent = chatHistory[currentConversationId].reasoning || '';
+
+                        while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+
+                        const chunk = decoder.decode(value);
+                        const lines = chunk.split('\n\n');
+
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                try {
+                                    const data = JSON.parse(line.substring(6));
+                                    
+                                    if (data.type === 'reasoning') {
+                                        // For reasoning, append to the output
+                                        fullReasoningContent += data.content;
+                                        reasoningOutput.innerHTML += data.content;
+                                        reasoningOutput.scrollTop = reasoningOutput.scrollHeight;
+                                    } 
+                                    else if (data.type === 'content') {
+                                        // Add each character individually to the buffer for smooth rendering
+                                        for (const char of data.content) {
+                                            contentBuffer.push(char);
+                                        }
+                                    }
+                                    else if (data.type === 'done') {
+                                        // Save the conversation ID
+                                        currentConversationId = data.conversation_id;
+                                        console.log(`Conversation ID: ${currentConversationId}`);
+                                    }
+                                } catch (e) {
+                                    console.error('Error parsing JSON:', e);
+                                }
+                            }
+                        }
+                        }
+
+                        // Save content to chat history
+                        chatHistory[currentConversationId].reasoning = fullReasoningContent;
+                        chatHistory[currentConversationId].content = contentOutput.dataset.rawContent || '';
+                        chatHistory[currentConversationId].lastUpdated = Date.now();
+                        chatHistory[currentConversationId].language = selectedLanguage;
+                        saveChatHistory();
+                        updateChatListUI();
+
+                        // Clear the input after successful generation
+                        promptInput.value = '';
+
+                        // Process any remaining buffered content
+                        if (contentBuffer.length > 0) {
+                        processContentBuffer();
+                        }
+
+                        } catch (error) {
+                        console.error('Error:', error);
+                        contentOutput.innerHTML = `
+                        <div class="alert alert-danger">
+                            <strong>Error:</strong> ${error.message}
+                            <br>
+                            <small>Please try again or check the server logs.</small>
+                        </div>
+                        `;
+                        } finally {
+                        // Reset button state
+                        generateBtn.innerHTML = 'Send Message';
+                        generateBtn.disabled = false;
+                        isGenerating = false;
+                        removeCursor();
+
+                        // Clear the update timer
+                        if (contentUpdateTimer) {
+                        clearInterval(contentUpdateTimer);
+                        contentUpdateTimer = null;
+                        }
+                        }
+                        }
+
+                        // Clear conversation function
+                        async function clearConversation() {
+                        if (!currentConversationId) {
+                        // No active conversation to clear
+                        alert('No active conversation to clear.');
+                        return;
+                        }
+
+                        try {
+                        clearConversationBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+                        clearConversationBtn.disabled = true;
+
+                        const response = await fetch(`/conversations/${currentConversationId}`, {
+                        method: 'DELETE'
+                        });
+
+                        if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+
+                        // Clear the UI
+                        contentOutput.innerHTML = `
+                        <div class="text-center text-muted p-5">
+                            <p>Your chat history has been cleared.</p>
+                            <p>Type a message to begin a new conversation.</p>
+                        </div>
+                        `;
+                        reasoningOutput.innerHTML = `
+                        <div class="text-center text-muted p-5">
+                            <p>The AI's reasoning process will appear here.</p>
+                        </div>
+                        `;
+                        delete contentOutput.dataset.rawContent;
+
+                        // Clear the chat history
+                        chatHistory[currentConversationId].content = '';
+                        chatHistory[currentConversationId].reasoning = '';
+                        chatHistory[currentConversationId].lastUpdated = Date.now();
+                        saveChatHistory();
+                        updateChatListUI();
+
+                        } catch (error) {
+                        console.error('Error:', error);
+                        alert(`Error clearing conversation: ${error.message}`);
+                        } finally {
+                        clearConversationBtn.innerHTML = '<i class="bi bi-trash"></i> Clear';
+                        clearConversationBtn.disabled = false;
+                        }
+                        }
+
+                        // Event Listeners
+                        generateBtn.addEventListener('click', generateContent);
+                        clearConversationBtn.addEventListener('click', clearConversation);
+                        newChatBtn.addEventListener('click', createNewChat);
+
+                        // Allow Enter key to submit
+                        promptInput.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        generateContent();
+                        }
+                        });
+
+                        // Initialize
+                        loadChatHistory();
+
+                        // If there are existing chats, select the most recent one
+                        if (Object.keys(chatHistory).length > 0) {
+                        const mostRecentChat = Object.entries(chatHistory)
+                        .sort((a, b) => b[1].lastUpdated - a[1].lastUpdated)[0][0];
+                        selectChat(mostRecentChat);
+                        }
+                        });
+                        </script>
+                        </body>
+                        </html>
